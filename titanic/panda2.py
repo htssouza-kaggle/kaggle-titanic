@@ -18,14 +18,15 @@ for s in sex_serie:
             maxFareInGroup = (f+1) * 10
             if f == 3 : maxFareInGroup = 1000
             means_data.loc[means_data.size] = [\
-            s, \
-            c, \
-            f, \
-            train_data[ \
-                (train_data.Sex == s) \
-                & (train_data.Pclass == c) & \
-                (train_data.Fare >= minFareInGroup) & \
-                (train_data.Fare < maxFareInGroup) ].Survived.mean() \
+                s, \
+                c, \
+                f, \
+                train_data[ \
+                    (train_data.Sex == s) \
+                    & (train_data.Pclass == c) & \
+                    (train_data.Fare >= minFareInGroup) & \
+                    (train_data.Fare < maxFareInGroup) \
+                ].Survived.mean() \
             ]
 
 # add column on test_data
