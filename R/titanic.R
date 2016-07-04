@@ -14,7 +14,7 @@ TEST_FILE_NAME = 'test.csv'
 # Dependencies and Libraries
 ########################################################################################################################
 
-requirements <- c('rpart', 'rattle', 'rpart.plot', 'RColorBrewer')
+requirements <- c('rpart', 'rattle', 'rpart.plot', 'RColorBrewer', 'randomForest')
 for (requirement in requirements) {
     if (! requirement %in% rownames(installed.packages())) {
         install.packages(requirement)
@@ -25,6 +25,7 @@ library(rpart)
 library(rattle)
 library(rpart.plot)
 library(RColorBrewer)
+library(randomForest)
 
 ########################################################################################################################
 # Shared Functions
@@ -108,9 +109,17 @@ prepare <- function(x) {
         x <- extract_word_as_flag(x, paste(title, '.', sep=''), 'firstname', paste('is', title, sep=''))
     }
     x$firstname <- trim(x$firstname)
+
+    # extract letter from cabin
+    x$cabin <- tolower(x$cabin)
+    cabin_letters <- c('a', 'b', 'c', 'd', 'e', 'f', 'g', 't')
+    for (cabin_letter in cabin_letters) {
+        x <- extract_word_as_flag(x, cabin_letter, 'cabin', paste('cabin', cabin_letter, sep=''))
+    }
+    x$cabin <- trim(x$cabin)
+
     x
 }
-
 
 ########################################################################################################################
 # 3-) Decision Tree.
@@ -120,7 +129,8 @@ prepare <- function(x) {
 train <- prepare(train_df)
 fit <- rpart(
             survived ~ sex + pclass + age + sibsp + parch + fare + embarked +
-                iscapt + iscol + isdon + isdr + ismajor + ismaster + ismiss + ismlle + ismr + ismrs + isrev,
+                iscapt + iscol + isdon + isdr + ismajor + ismaster + ismiss + ismlle + ismr + ismrs + isrev +
+                cabina + cabinb + cabinc + cabind + cabine + cabinf + cabing + cabint,
             data=train,
             method="class"
         )
@@ -134,4 +144,26 @@ test <- prepare(test_df)
 Prediction <- predict(fit, test, type = 'class')
 submit <- data.frame(PassengerId = test$passengerid, Survived = Prediction)
 write.csv(submit, file = 'dtree.csv', row.names = FALSE)
+
+########################################################################################################################
+# 4-) Random Forest.
+########################################################################################################################
+
+# train
+train <- prepare(train_df)
+
+fit <- randomForest(
+    as.factor(survived) ~ sex + pclass + age + sibsp + parch + fare + embarked +
+    iscapt + iscol + isdon + isdr + ismajor + ismaster + ismiss + ismlle + ismr + ismrs + isrev +
+    cabina + cabinb + cabinc + cabind + cabine + cabinf + cabing + cabint,
+    data=train,
+    ntree=2000,
+    method="class"
+)
+
+# predict
+test <- prepare(test_df)
+Prediction <- predict(fit, test, type = 'class')
+submit <- data.frame(PassengerId = test$passengerid, Survived = Prediction)
+write.csv(submit, file = 'rforest.csv', row.names = FALSE)
 
