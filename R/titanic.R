@@ -119,7 +119,8 @@ prepare <- function(x) {
 # train
 train <- prepare(train_df)
 fit <- rpart(
-            survived ~ pclass + sex + age + sibsp + parch + fare + embarked,
+            survived ~ sex + pclass + age + sibsp + parch + fare + embarked +
+                iscapt + iscol + isdon + isdr + ismajor + ismaster + ismiss + ismlle + ismr + ismrs + isrev,
             data=train,
             method="class"
         )
