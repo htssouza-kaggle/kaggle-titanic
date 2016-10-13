@@ -24,7 +24,7 @@ library(RColorBrewer)
 ################################################################################
 
 source ("R/common.R")
-source ("R/mcc.R")
+source ("R/evaluate.R")
 
 ########################################################################################################################
 # Constants (change may be required for your own environment)
@@ -60,7 +60,7 @@ validation <- passengerData$validation
 validation <- Normalize(validation)
 validation.result <- predict(fit, validation, type = "class")
 
-print(mccEval(validation.result, validation[, survived]))
+print(paste0("Result = ", evaluate(validation.result, validation[, survived])))
 
 # test
 test <- passengerData$test

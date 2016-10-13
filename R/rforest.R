@@ -21,7 +21,7 @@ library(randomForest)
 ################################################################################
 
 source ("R/common.R")
-source ("R/mcc.R")
+source ("R/evaluate.R")
 
 ########################################################################################################################
 # Constants (change may be required for your own environment)
@@ -39,12 +39,12 @@ set.seed(1994)
 # Decision Tree Implementation
 ########################################################################################################################
 
-validationFactors <- c(.1, .2, .3, .4, .5)
-ntrees <- c(50, 80, 100, 300, 500, 1000, 2000, 3000, 5000)
-mccs <- CJ(validationFactors, ntrees)
-setnames(mccs, "V1", "validationFactor")
-setnames(mccs, "V2", "ntree")
-mccs[, mcc := 0]
+validationFactors <- c(.02, .05, .08, .1, .2, .22, .25, .28, .3, .32, .34, .4, .5)
+ntrees <- c(50, 80, 90, 100, 110, 120, 150, 180, 300, 500, 1000, 2000, 3000, 5000)
+results <- CJ(validationFactors, ntrees)
+setnames(results, "V1", "validationFactor")
+setnames(results, "V2", "ntree")
+results[, result := 0]
 
 for(.validationFactor in validationFactors) {
 
@@ -66,18 +66,18 @@ for(.validationFactor in validationFactors) {
     validation.result <- predict(fit, validation, type = "class")
 
     # evaluation
-    mcc.result <- mccEval(validation.result, validation[, survived])
-    mccs[ validationFactor == .validationFactor & ntree == .ntree, mcc := mcc.result  ]
+    .result <- evaluate(validation.result, validation[, survived])
+    results[ validationFactor == .validationFactor & ntree == .ntree, result := .result ]
 
-    print(paste0("validationFactor = ", .validationFactor,  ", trees = ", .ntree, ", mcc = ", mcc.result))
+    print(paste0("validationFactor = ", .validationFactor,  ", trees = ", .ntree, ", result = ", .result))
   }
 }
 
-print(mccs)
-betterMcc <- (mccs[order(-mcc), mcc])[1]
-betterNtree <- mccs[mcc == betterMcc, ntree]
-betterValidationFactor <- mccs[mcc == betterMcc, validationFactor]
-print(paste0("betterValidationFactor = ", betterValidationFactor,  ", betterNtree = ", betterNtree))
+print(results)
+betterResult <- (results[order(-result), result])[1]
+betterNtree <- (results[result == betterResult, ntree])[1]
+betterValidationFactor <- (results[result == betterResult, validationFactor])[1]
+print(paste0("betterValidationFactor = ", betterValidationFactor,  ", betterNtree = ", betterNtree, ", betterResult = ", betterResult))
 
 passengerData <- LoadPassengerData(validationFactor = betterValidationFactor)
 train <- passengerData$train
@@ -92,4 +92,5 @@ test <- passengerData$test
 test <- Normalize(test)
 test.result <- predict(fit, test, type = "class")
 test.submission <- data.table(PassengerId = test[, passengerid], Survived = test.result)
+test.submission[ is.na(Survived), Survived := as.factor(0)]
 write.csv(test.submission, file=kSubmissionFileName, row.names=FALSE)
