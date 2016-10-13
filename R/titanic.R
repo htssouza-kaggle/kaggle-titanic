@@ -4,20 +4,12 @@
 ########################################################################################################################
 
 ########################################################################################################################
-# Constants (change may be required for your own environment)
-########################################################################################################################
-
-TRAIN_FILE_NAME = 'train.csv'
-TEST_FILE_NAME = 'test.csv'
-
-########################################################################################################################
 # Dependencies and Libraries
 ########################################################################################################################
 
-requirements <- c('rpart', 'rattle', 'rpart.plot', 'RColorBrewer', 'randomForest')
-for (requirement in requirements) {
-    if (! requirement %in% rownames(installed.packages())) {
-        install.packages(requirement)
+for (.requirement in c('rpart', 'rattle', 'rpart.plot', 'RColorBrewer', 'randomForest')) {
+    if (! .requirement %in% rownames(installed.packages())) {
+        install.packages(.requirement)
     }
 }
 
@@ -26,6 +18,13 @@ library(rattle)
 library(rpart.plot)
 library(RColorBrewer)
 library(randomForest)
+
+########################################################################################################################
+# Constants (change may be required for your own environment)
+########################################################################################################################
+
+TRAIN_FILE_NAME = 'data/input/train.csv'
+TEST_FILE_NAME = 'data/input/test.csv'
 
 ########################################################################################################################
 # Shared Functions
@@ -143,17 +142,26 @@ test <- prepare(test_df)
 
 Prediction <- predict(fit, test, type = 'class')
 submit <- data.frame(PassengerId = test$passengerid, Survived = Prediction)
-write.csv(submit, file = 'dtree.csv', row.names = FALSE)
+write.csv(submit, file = './data/output/dtree.csv', row.names = FALSE)
 
 ########################################################################################################################
 # 4-) Random Forest.
 ########################################################################################################################
 
+meanAge <- mean(train$age[! is.na(train$age)])
+defaultEmbarked <- "S"
+
 # train
 train <- prepare(train_df)
 
+train$survived <- as.factor(train$survived)
+train$age[is.na(train$age)] <- meanAge
+train$embarked <- as.character(train$embarked)
+train$embarked[train$embarked == ""] <- defaultEmbarked
+train$ticket <- as.character(train$ticket)
+
 fit <- randomForest(
-    as.factor(survived) ~ sex + pclass + age + sibsp + parch + fare + embarked +
+    survived ~ sex + age + pclass  + sibsp + parch + fare + #embarked +
     iscapt + iscol + isdon + isdr + ismajor + ismaster + ismiss + ismlle + ismr + ismrs + isrev +
     cabina + cabinb + cabinc + cabind + cabine + cabinf + cabing + cabint,
     data=train,
@@ -163,7 +171,12 @@ fit <- randomForest(
 
 # predict
 test <- prepare(test_df)
+test$age[is.na(test$age)] <- meanAge
+test$embarked <- as.character(test$embarked)
+test$ticket <- as.character(test$ticket)
+test$embarked[test$embarked == ""] <- defaultEmbarked
+
 Prediction <- predict(fit, test, type = 'class')
 submit <- data.frame(PassengerId = test$passengerid, Survived = Prediction)
-write.csv(submit, file = 'rforest.csv', row.names = FALSE)
+write.csv(submit, file = './data/output/rforest.csv', row.names = FALSE)
 
