@@ -39,7 +39,7 @@ set.seed(1994)
 # Decision Tree Implementation
 ########################################################################################################################
 
-validationFactors <- c(.02, .05, .08, .1, .2, .22, .25, .28, .3, .32, .34, .4, .5)
+validationFactors <- c(.25, .28, .3, .32, .34, .4, .5)
 ntrees <- c(50, 80, 90, 100, 110, 120, 150, 180, 300, 500, 1000, 2000, 3000, 5000)
 results <- CJ(validationFactors, ntrees)
 setnames(results, "V1", "validationFactor")
