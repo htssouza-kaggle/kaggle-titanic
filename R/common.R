@@ -21,27 +21,13 @@ library(stringi)
 ########################################################################################################################
 
 # if source col has word, set targetCol with 1, otherwise 0
-extractWordAsFlag <- function(x, word, sourceCol, targetCol=NA) {
+ExtractWordAsFlag <- function(x, word, sourceCol, targetCol=NA) {
   if (is.na(targetCol)) targetCol <- word
 
   pattern <- word
   x[, eval(targetCol) := 0]
   x[grep(pattern, x[, get(sourceCol)], ignore.case=TRUE), eval(targetCol) := 1 ]
   x[, eval(sourceCol) := gsub(pattern, "", get(sourceCol), ignore.case=TRUE) ]
-}
-
-# replace complete words in similarWords list with the first word in this list
-normalize <- function(x, col, similarWords) {
-  baseWord <- similarWords[1]
-  for (alternative_word in similarWords[2:length(similarWords)]) {
-    pattern <- paste0("\\<", alternative_word, "\\>")
-    x[, eval(col) :=  gsub(pattern, baseWord, get(col), ignore.case=TRUE) ]
-  }
-}
-
-# replace wordS with word
-normalizeSingular <- function(x, col, word) {
-  normalize (x, col, c(word, paste0(word, "s")))
 }
 
 ########################################################################################################################
@@ -88,10 +74,10 @@ GetFormula <- function(x) {
   return (as.formula(formulaText))
 }
 
-# normalize column names, person name, title and cabin
+# Normalize column names, person name, title and cabin
 NormalizePassenger <- function(x) {
 
-  # normalize names
+  # Normalize names
   names(x) <- tolower(names(x))
   x <- data.table(x)
 
@@ -108,7 +94,7 @@ NormalizePassenger <- function(x) {
   # convert words to flags
   titles <- c("capt", "col", "don", "dr", "major", "master", "miss", "mlle", "mr", "mrs", "rev")
   for (title in titles) {
-    extractWordAsFlag(x, paste0(title, "."), "firstname", paste0("is", title))
+    ExtractWordAsFlag(x, paste0(title, "."), "firstname", paste0("is", title))
   }
   x[, firstname := stri_trim(firstname) ]
 
@@ -116,7 +102,7 @@ NormalizePassenger <- function(x) {
   x[, cabin := tolower(cabin) ]
   cabinLetters <- c("a", "b", "c", "d", "e", "f", "g", "t")
   for (cabinLetter in cabinLetters) {
-    extractWordAsFlag(x, cabinLetter, "cabin", paste0("cabin", cabinLetter))
+    ExtractWordAsFlag(x, cabinLetter, "cabin", paste0("cabin", cabinLetter))
   }
   x[, cabin := stri_trim(cabin) ]
 
@@ -147,4 +133,9 @@ Normalize <- function (x) {
   x[, ticket := NULL]
 
   return (data.table(x))
+}
+
+# eval function predict | values
+Evaluate <- function(y_hat, y) {
+  return (length(y[y_hat == y]) / length(y))
 }

@@ -60,7 +60,7 @@ validation <- passengerData$validation
 validation <- Normalize(validation)
 validation.result <- predict(fit, validation, type = "class")
 
-print(paste0("Result = ", evaluate(validation.result, validation[, survived])))
+print(paste0("Result = ", Evaluate(validation.result, validation[, survived])))
 
 # test
 test <- passengerData$test

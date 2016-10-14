@@ -66,7 +66,7 @@ for(.validationFactor in validationFactors) {
     validation.result <- predict(fit, validation, type = "class")
 
     # evaluation
-    .result <- evaluate(validation.result, validation[, survived])
+    .result <- Evaluate(validation.result, validation[, survived])
     results[ validationFactor == .validationFactor & ntree == .ntree, result := .result ]
 
     print(paste0("validationFactor = ", .validationFactor,  ", trees = ", .ntree, ", result = ", .result))
