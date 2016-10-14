@@ -35,62 +35,122 @@ kSubmissionFileName <- "data/output/rforest.csv"
 
 set.seed(1994)
 
-########################################################################################################################
-# Decision Tree Implementation
-########################################################################################################################
+################################################################################
+# Random Forest Specific Methods
+################################################################################
 
-validationFactors <- c(.25, .28, .3, .32, .34, .4, .5)
-ntrees <- c(50, 80, 90, 100, 110, 120, 150, 180, 300, 500, 1000, 2000, 3000, 5000)
-results <- CJ(validationFactors, ntrees)
-setnames(results, "V1", "validationFactor")
-setnames(results, "V2", "ntree")
-results[, result := 0]
-
-for(.validationFactor in validationFactors) {
-
-  passengerData <- LoadPassengerData(validationFactor = .validationFactor)
-
-  for(.ntree in ntrees) {
-
-    # train
-    train <- passengerData$train
-    train <- Normalize(train)
-    fit <- randomForest(GetFormula(train),
-                        data=train,
-                        method="class",
-                        ntree=.ntree)
-
-    # validation
-    validation <- passengerData$validation
-    validation <- Normalize(validation)
-    validation.result <- predict(fit, validation, type = "class")
-
-    # evaluation
-    .result <- Evaluate(validation.result, validation[, survived])
-    results[ validationFactor == .validationFactor & ntree == .ntree, result := .result ]
-
-    print(paste0("validationFactor = ", .validationFactor,  ", trees = ", .ntree, ", result = ", .result))
-  }
+BuildParamOutputsTable <- function() {
+  validationFactors <- c(.25, .28, .3, .35)
+  ntrees <- c(50, 80, 90, 100, 110, 120, 150, 180, 500, 1000, 5000)
+  outputs <- CJ(validationFactors, ntrees)
+  setnames(outputs, "V1", "validationFactor")
+  setnames(outputs, "V2", "ntree")
+  outputs[, score := 0]
+  return (outputs)
 }
 
-print(results)
-betterResult <- (results[order(-result), result])[1]
-betterNtree <- (results[result == betterResult, ntree])[1]
-betterValidationFactor <- (results[result == betterResult, validationFactor])[1]
-print(paste0("betterValidationFactor = ", betterValidationFactor,  ", betterNtree = ", betterNtree, ", betterResult = ", betterResult))
+PrintParams <- function (params=params) {
+  print("params:")
+  print(params)
+}
 
-passengerData <- LoadPassengerData(validationFactor = betterValidationFactor)
-train <- passengerData$train
-train <- Normalize(train)
-fit <- randomForest(GetFormula(train),
-                    data=train,
-                    method="class",
-                    ntree=betterNtree)
+PrintOutputs <- function (outputs=outputs) {
+  print("outputs:")
+  print(outputs)
+}
 
-# test
-test <- passengerData$test
-test <- Normalize(test)
-test.result <- predict(fit, test, type = "class")
-test.submission <- data.table(PassengerId = test[, passengerid], Survived = test.result)
-test.submission[ is.na(Survived), Survived := as.factor(0)]
-write.csv(test.submission, file=kSubmissionFileName, row.names=FALSE)
+PrintParamsOutput <- function (params=params, output=output) {
+  print("params:")
+  print(params)
+  print("output.score:")
+  print(output$score)
+}
+
+SaveOutput <- function(outputs, outputIndex, output) {
+  outputs[outputIndex, score := output$score]
+}
+
+GetBestOutputParams <- function (results) {
+  sortedOutputs <- results[order(-score)]
+  return (sortedOutputs[1])
+}
+
+LoadTransform <- function(input=NULL, params=NULL) {
+  output <- LoadPassengerData(validationFactor = params$validationFactor)
+  return (output)
+}
+
+TrainTransform <- function(input=NULL, params=NULL) {
+  train <- input$train
+  train <- Normalize(train)
+  fit <- randomForest(GetFormula(train),
+                      data=train,
+                      method="class",
+                      ntree=params$ntree)
+
+  output <- input
+  output$train <- train
+  output$fit <- fit
+
+  return (output)
+}
+
+ValidateTransform <- function(input=NULL, params=NULL) {
+  validation <- input$validation
+  validation <- Normalize(validation)
+  validation.result <- predict(input$fit, validation, type="class")
+
+  output <- input
+  output$validation <- validation
+  output$validation.result <- validation.result
+
+  return (output)
+}
+
+EvaluateTransform <- function(input=NULL, params=NULL) {
+  score <- Evaluate(input$validation.result, input$validation[, survived])
+  output <- input
+  output$score <- score
+  return (output)
+}
+
+TestTransform <- function(input=NULL, params=NULL) {
+  test <- input$test
+  test <- Normalize(test)
+  test.result <- predict(input$fit, test, type="class")
+  test.submission <- data.table(PassengerId=test[, passengerid], Survived=test.result)
+  test.submission[ is.na(Survived), Survived := as.factor(0)]
+  write.csv(test.submission, file=kSubmissionFileName, row.names=FALSE)
+
+  output <- input
+  output$test.result <- test.result
+  output$test.submission <- test.submission
+
+  return (output)
+}
+
+################################################################################
+# Main Flow
+################################################################################
+
+outputs <- BuildParamOutputsTable()
+
+for(outputIndex in 1:nrow(outputs)) {
+  params <- outputs[outputIndex]
+
+  output <- LoadTransform(params=params) %>%
+    TrainTransform(input=., params=params) %>%
+    ValidateTransform(input=., params=params) %>%
+    EvaluateTransform(input=., params=params)
+
+  PrintParamsOutput(params=params, output=output)
+  SaveOutput(outputs, outputIndex, output)
+}
+
+PrintOutputs(output)
+params <- GetBestOutputParams(outputs)
+PrintParams(params)
+output <- LoadTransform(params=params) %>%
+  TrainTransform(input=., params=params) %>%
+  ValidateTransform(input=., params=params) %>%
+  TestTransform(input=., params=params)
