@@ -128,6 +128,10 @@ Normalize <- function (x, bypassFactorization=FALSE) {
              by.x="lastname",
              by.y="lastname")
 
+  # scale some columns
+  x[, fare := scale(fare)]
+  x[, age := scale(age)]
+
   # factors
   if (! bypassFactorization) {
     x[, embarked := as.factor(embarked) ]
