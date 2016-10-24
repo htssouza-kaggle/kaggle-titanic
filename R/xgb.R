@@ -7,7 +7,7 @@
 # Dependencies and Libraries
 ################################################################################
 
-for (.requirement in c("data.table", "magrittr", "randomForest")) {
+for (.requirement in c("data.table", "magrittr", "xgboost")) {
   if (! .requirement %in% rownames(installed.packages())) {
     install.packages(.requirement, repos="http://cran.rstudio.com/")
   }
@@ -15,7 +15,7 @@ for (.requirement in c("data.table", "magrittr", "randomForest")) {
 
 library(data.table)
 library(magrittr)
-library(randomForest)
+library(xgboost)
 
 ################################################################################
 # Local dependencies
@@ -27,7 +27,7 @@ source ("R/common.R")
 # Constants (change may be required for your own environment)
 ################################################################################
 
-kSubmissionFileName <- "data/output/rforest.csv"
+kSubmissionFileName <- "data/output/xgb.csv"
 
 ################################################################################
 # Seed
@@ -36,15 +36,15 @@ kSubmissionFileName <- "data/output/rforest.csv"
 set.seed(1994)
 
 ################################################################################
-# Random Forest Specific Methods
+# XGB Specific Methods
 ################################################################################
 
 BuildParamOutputsTable <- function() {
   validationFactors <- c(.25, .28, .3, .35)
-  ntrees <- c(50, 80, 90, 100, 110, 120, 150, 180, 500, 1000, 5000)
-  outputs <- CJ(validationFactors, ntrees)
+  nrounds <- c(5, 10, 20, 50, 80, 100, 120, 200, 300)
+  outputs <- CJ(validationFactors, nrounds)
   setnames(outputs, "V1", "validationFactor")
-  setnames(outputs, "V2", "ntree")
+  setnames(outputs, "V2", "nround")
   outputs[, score := 0]
   return (outputs)
 }
@@ -80,13 +80,52 @@ LoadTransform <- function(input=NULL, params=NULL) {
   return (output)
 }
 
+BuildXGBData <- function(x, ...) UseMethod("BuildXGBData")
+
+BuildXGBData.data.table <- function(x, withLabel=FALSE) {
+
+  # column filter and sort (uniform)
+  cols <- names(x)[! names(x) %in% c("passengerid", "survived") ]
+  cols <- unique(sort(cols))
+  data <- x[, .SD, , .SDcols = cols]
+
+  for(colIndex in 1:length(names(data))) {
+    col <- data[, get(names(data)[colIndex])]
+    colClass <- class(col)
+    dirty <- FALSE
+    if(colClass == "integer") {
+      col <- as.numeric(col)
+      dirty <- TRUE
+    } else if(colClass == "factor") {
+      col <- as.numeric(col)
+      dirty <- TRUE
+    } else if(colClass == "character") {
+      col <- as.numeric(as.factor(col))
+      dirty <- TRUE
+    }
+    if (dirty) {
+      data[, eval(names(data)[colIndex]) := col]
+    }
+  }
+
+  if (withLabel) {
+    return (xgb.DMatrix (as.matrix(data), label=as.numeric(as.character(x[, survived])), missing=NaN))
+  } else {
+    return (xgb.DMatrix (as.matrix(data), missing=NaN))
+  }
+}
+
+GetXGBPrediction <- function(x) {
+  return (ifelse(x > 0.5, 1, 0))
+}
+
 TrainTransform <- function(input=NULL, params=NULL) {
   train <- input$train
-  train <- Normalize(train)
-  fit <- randomForest(GetFormula(train),
-                      data=train,
-                      method="class",
-                      ntree=params$ntree)
+  train <- Normalize(train, bypassFactorization=TRUE)
+
+  fit <- xgboost(BuildXGBData(train, withLabel=TRUE),
+                 objective="binary:logistic",
+                 nround=params$nround)
 
   output <- input
   output$train <- train
@@ -97,8 +136,9 @@ TrainTransform <- function(input=NULL, params=NULL) {
 
 ValidateTransform <- function(input=NULL, params=NULL) {
   validation <- input$validation
-  validation <- Normalize(validation)
-  validation.result <- predict(input$fit, validation, type="class")
+  validation <- Normalize(validation, bypassFactorization=TRUE)
+
+  validation.result <- GetXGBPrediction(predict(input$fit, BuildXGBData(validation)))
 
   output <- input
   output$validation <- validation
@@ -116,8 +156,9 @@ EvaluateTransform <- function(input=NULL, params=NULL) {
 
 TestTransform <- function(input=NULL, params=NULL) {
   test <- input$test
-  test <- Normalize(test)
-  test.result <- predict(input$fit, test, type="class")
+  test <- Normalize(test, bypassFactorization=TRUE)
+
+  test.result <- GetXGBPrediction(predict(input$fit, BuildXGBData(test)))
   test.submission <- data.table(PassengerId=test[, passengerid], Survived=test.result)
   test.submission[ is.na(Survived), Survived := as.factor(0)]
   write.csv(test.submission, file=kSubmissionFileName, row.names=FALSE)

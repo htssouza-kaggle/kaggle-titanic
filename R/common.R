@@ -109,7 +109,7 @@ NormalizePassenger <- function(x) {
   return (data.table(x))
 }
 
-Normalize <- function (x) {
+Normalize <- function (x, bypassFactorization=FALSE) {
 
   # basics
   x <- NormalizePassenger(x)
@@ -122,9 +122,11 @@ Normalize <- function (x) {
   x[embarked == "", embarked := "S"]
 
   # factors
-  x[, embarked := as.factor(embarked) ]
-  x[, sex := as.factor(sex) ]
-  if ("survived" %in% names(x)) x[, survived := as.factor(survived) ]
+  if (! bypassFactorization) {
+    x[, embarked := as.factor(embarked) ]
+    x[, sex := as.factor(sex) ]
+    if ("survived" %in% names(x)) x[, survived := as.factor(survived) ]
+  }
 
   # unused columns
   x[, cabin := NULL]
