@@ -41,7 +41,7 @@ set.seed(1994)
 
 BuildParamOutputsTable <- function() {
   validationFactors <- c(.25, .28, .3, .35)
-  nrounds <- c(5, 10, 20, 50, 80, 100, 120, 200, 300)
+  nrounds <- c(25, 50, 80, 100, 120, 200, 300, 500, 1000)
   outputs <- CJ(validationFactors, nrounds)
   setnames(outputs, "V1", "validationFactor")
   setnames(outputs, "V2", "nround")

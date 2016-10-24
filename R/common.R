@@ -121,6 +121,13 @@ Normalize <- function (x, bypassFactorization=FALSE) {
   # embarked
   x[embarked == "", embarked := "S"]
 
+  # last name family count
+  lastnamestats <- x[, list(lastnamecount=.N), by=lastname]
+  x <- merge(x=x,
+             y=lastnamestats,
+             by.x="lastname",
+             by.y="lastname")
+
   # factors
   if (! bypassFactorization) {
     x[, embarked := as.factor(embarked) ]

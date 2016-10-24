@@ -45,7 +45,10 @@ set.seed(1994)
 
 BuildParamOutputsTable <- function() {
   validationFactors <- c(.25, .28, .3, .32, .34, .4, .5)
-  outputs <- data.table(validationFactor=validationFactors)
+  minSplits <- c(1, 2, 3, 5, 10, 20, 30)
+  outputs <- CJ(validationFactors, minSplits)
+  setnames(outputs, "V1", "validationFactor")
+  setnames(outputs, "V2", "minsplit")
   outputs[, score := 0]
   return (outputs)
 }
@@ -79,9 +82,11 @@ LoadTransform <- function(input=NULL, params=NULL) {
 TrainTransform <- function(input=NULL, params=NULL) {
   train <- input$train
   train <- Normalize(train)
+  control <- rpart.control(minsplit=params$minsplit)
   fit <- rpart(GetFormula(train),
                data=train,
-               method="class")
+               method="class",
+               control=control)
 
   output <- input
   output$train <- train
